@@ -1,0 +1,2 @@
+# mini lotto
+make money!
