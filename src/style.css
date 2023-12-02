@@ -23,3 +23,6 @@ html {
 	line-height: 2;
 	border-radius: 50%;
 }
+.ball--win {
+	background-color: lightgreen;
+}

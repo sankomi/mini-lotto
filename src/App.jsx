@@ -46,27 +46,52 @@ export default function App() {
 		<h1>mini lotto</h1>
 		<button onClick={() => drawNumbers(1, 20, 4)}>check</button>
 		<LottoResult result={results.length > 0? results[results.length - 1]: null}/>
-		<TicketList tickets={tickets}/>
+		<TicketList tickets={tickets} results={results}/>
 		<button onClick={() => addRandomTicket(drawNumber, 1, 20, 4)}>add</button>
 	</>;
 }
 
-function TicketList({tickets}) {
+function TicketList({tickets, results}) {
 	return <>
 		<h2>tickets</h2>
 		<ul className="tickets">
-			{tickets.map((ticket, index) => <TicketItem key={index} ticket={ticket}/>)}
+			{tickets.map((ticket, index) => {
+				let drawNumber = ticket.drawNumber;
+				let numbers = ticket.numbers;
+				let result = results.find(result => result.drawNumber === drawNumber) || {numbers: []};
+				return <TicketItem key={index} drawNumber={drawNumber} numbers={numbers} winning={result.numbers}/>;
+			})}
 		</ul>
 	</>;
 }
 
-function TicketItem({ticket}) {
+function TicketItem({drawNumber, numbers, winning}) {
+	let matches = numbers.filter(number => winning.includes(number)).length;
+	let win;
+	if (winning.length) {
+		if (matches > 0 && matches <= numbers.length) {
+			win = `div ${numbers.length - matches + 1}`;
+		} else {
+			win = "x";
+		}
+	} else {
+		win = "pending";
+	}
+
 	return <li className="ticket">
-		<div>draw number {ticket.drawNumber}</div>
+		<div>draw number {drawNumber} - {win}</div>
 		<div className="balls">
-			{ticket.numbers.map((number, index) => <LottoBall key={index} value={number}/>)}
+			{numbers.map((number, index) => <TicketBall key={index} value={number} win={winning.includes(number)}/>)}
 		</div>
 	</li>;
+}
+
+function TicketBall({value, win}) {
+	let classes = ["ball"];
+	if (win) {
+		classes.push("ball--win");
+	}
+	return <div className={classes.join(" ")}>{value}</div>;
 }
 
 function LottoResult({result}) {
