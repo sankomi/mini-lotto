@@ -1,0 +1,25 @@
+* {
+	box-sizing: border-box;
+}
+html {
+	font-family: monospace;
+}
+
+.tickets {
+	padding: 0;
+
+	list-style: none;
+}
+.balls {
+	display: flex;
+	gap: 0.5rem;
+}
+.ball {
+	width: 2rem;
+	height: 2rem;
+	border: 1px solid black;
+
+	text-align: center;
+	line-height: 2;
+	border-radius: 50%;
+}
