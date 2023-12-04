@@ -22,22 +22,11 @@ export default function App() {
 		setResults([...results, {drawNumber, numbers: drawn}]);
 	}
 
-	function addRandomTicket(drawNumber, start, end, n) {
+	function addTicket(numbers) {
 		let ticket = {
 			drawNumber,
-			numbers: [],
+			numbers,
 		};
-
-		let pool = [];
-		for (let i = start; i <= end; i++) {
-			pool.push(i);
-		}
-
-		for (let i = 0; i < n; i++) {
-			let index = Math.floor(Math.random() * pool.length);
-			ticket.numbers.push(pool[index]);
-			pool.splice(index, 1);
-		}
 
 		setTickets([...tickets, ticket]);
 	}
@@ -47,7 +36,7 @@ export default function App() {
 		<button onClick={() => drawNumbers(1, 20, 4)}>check</button>
 		<LottoResult result={results.length > 0? results[results.length - 1]: null}/>
 		<TicketList tickets={tickets} results={results}/>
-		<button onClick={() => addRandomTicket(drawNumber, 1, 20, 4)}>add</button>
+		<TicketSelect start={1} end={20} n={4} addTicket={addTicket}/>
 	</>;
 }
 
@@ -84,6 +73,117 @@ function TicketItem({drawNumber, numbers, winning}) {
 			{numbers.map((number, index) => <TicketBall key={index} value={number} win={winning.includes(number)}/>)}
 		</div>
 	</li>;
+}
+
+function TicketSelect({start, end, n, addTicket}) {
+	const [selecting, setSelecting] = useState(0);
+	const [numbers, setNumbers] = useState(Array(n).fill(null));
+
+	let pool = [];
+	for (let i = start; i <= end; i++) {
+		pool.push(i);
+	}
+
+	function changeSelecting(index) {
+		if (index < n) {
+			setSelecting(index);
+		} else if (index >= 0) {
+			setSelecting(n - 1);
+		} else if (index < 0) {
+			setSelecting(0);
+		}
+	}
+
+	function selectNumber(number) {
+		if (numbers.includes(number)) {
+			return;
+		}
+
+		setNumbers(numbers.map((n, index) => {
+			if (index === selecting) {
+				return number;
+			} else {
+				return n;
+			}
+		}));
+
+		changeSelecting(selecting + 1);
+	}
+
+	function clear() {
+		setSelecting(0);
+		setNumbers(Array(n).fill(null));
+	}
+
+	function random() {
+		let pool = [];
+		for (let i = start; i <= end; i++) {
+			pool.push(i);
+		}
+
+		let numbers = [];
+		for (let i = 0; i < n; i++) {
+			let index = Math.floor(Math.random() * pool.length);
+			numbers.push(pool[index]);
+			pool.splice(index, 1);
+		}
+
+		setSelecting(n - 1);
+		setNumbers(numbers);
+	}
+
+	function add() {
+		if (numbers.some(number => number === null)) {
+			return;
+		}
+
+		addTicket(numbers);
+		clear();
+	}
+
+	return <>
+		<div className="select-numbers">
+			{numbers.map((number, index) => {
+				return <TicketSelectNumber
+					key={index}
+					value={number}
+					selecting={index === selecting}
+					onClick={() => changeSelecting(index)}
+				/>;
+			})}
+		</div>
+		<div className="select-buttons">
+			{pool.map((number, index) => {
+				return <TicketSelectButton
+					key={index}
+					value={number}
+					selected={numbers.includes(number)}
+					onClick={() => selectNumber(number)}
+				/>;
+			})}
+		</div>
+		<div>
+			<button onClick={random}>random</button>
+			<button onClick={clear}>clear</button>
+			<button onClick={add}>add</button>
+		</div>
+	</>;
+}
+
+function TicketSelectNumber({value, selecting, onClick}) {
+	if (selecting) {
+		return <button className="ball ball--selecting" onClick={onClick}>{value}</button>;
+	} else {
+		return <button className="ball" onClick={onClick}>{value}</button>;
+	}
+}
+
+function TicketSelectButton({value, selected, onClick}) {
+	if (selected) {
+		return <button className="ball ball--disabled" disabled>{value}</button>;
+	} else {
+		return <button className="ball" onClick={onClick}>{value}</button>;
+	}
 }
 
 function TicketBall({value, win}) {

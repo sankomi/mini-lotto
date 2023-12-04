@@ -10,18 +10,32 @@ html {
 
 	list-style: none;
 }
-.balls {
+.balls,
+.select-numbers,
+.select-buttons {
 	display: flex;
-	gap: 0.5rem;
+	flex-wrap: wrap;
+	gap: 0 0.5rem;
 }
 .ball {
+	display: block;
 	width: 2rem;
 	height: 2rem;
+	padding: 0;
 	border: 1px solid black;
 
+	background-color: white;
+	font-family: inherit;
+	font-size: inherit;
 	text-align: center;
-	line-height: 2;
+	line-height: 2rem;
 	border-radius: 50%;
+}
+.ball--selecting {
+	background-color: pink;
+}
+.ball--disabled {
+	background-color: lightgrey;
 }
 .ball--win {
 	background-color: lightgreen;
