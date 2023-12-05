@@ -1,9 +1,16 @@
 import React, {useState} from "react";
 
+const START = 1;
+const END = 20;
+const N = 4;
+const START_MONEY = 100;
+const PRIZES = [50, 20, 10, 5]
+
 export default function App() {
 	const [drawNumber, setDrawNumber] = useState(1);
 	const [results, setResults] = useState([]);
 	const [tickets, setTickets] = useState([]);
+	const [wallet, setWallet] = useState(new Wallet(START_MONEY));
 
 	function drawNumbers(start, end, n) {
 		let pool = [];
@@ -23,24 +30,76 @@ export default function App() {
 	}
 
 	function addTicket(numbers) {
+		try {
+			wallet.spend(5);
+		} catch (err) {
+			if (err instanceof NoMoneyError) {
+				console.log(err);
+				return false;
+			} else {
+				throw err;
+			}
+		}
+
 		let ticket = {
 			drawNumber,
 			numbers,
+			claimed: false,
+			prize: 0,
 		};
 
 		setTickets([...tickets, ticket]);
+
+		return true;
+	}
+
+	function claimTicket(ticket) {
+		wallet.save(ticket.prize);
+		ticket.prize = 0;
+		setTickets([...tickets]);
 	}
 
 	return <>
 		<h1>mini lotto</h1>
-		<button onClick={() => drawNumbers(1, 20, 4)}>check</button>
+		<button onClick={() => drawNumbers(START, END, N)}>check</button>
 		<LottoResult result={results.length > 0? results[results.length - 1]: null}/>
-		<TicketList tickets={tickets} results={results}/>
-		<TicketSelect start={1} end={20} n={4} addTicket={addTicket}/>
+		<h2>wallet</h2>
+		<div>${wallet.money}</div>
+		<TicketSelect start={START} end={END} n={N} addTicket={addTicket}/>
+		<TicketList tickets={tickets} results={results} claimTicket={claimTicket}/>
 	</>;
 }
 
-function TicketList({tickets, results}) {
+class NoMoneyError extends Error {
+
+	constructor() {
+		super("not enough money!");
+	}
+
+}
+
+class Wallet {
+
+	constructor(money) {
+		this.money = money;
+	}
+
+	spend(amount) {
+		if (this.money >= amount) {
+			this.money -= amount;
+			return true;
+		} else {
+			throw new NoMoneyError();
+		}
+	}
+
+	save(amount) {
+		this.money += amount;
+	}
+
+}
+
+function TicketList({tickets, results, claimTicket}) {
 	return <>
 		<h2>tickets</h2>
 		<ul className="tickets">
@@ -48,18 +107,24 @@ function TicketList({tickets, results}) {
 				let drawNumber = ticket.drawNumber;
 				let numbers = ticket.numbers;
 				let result = results.find(result => result.drawNumber === drawNumber) || {numbers: []};
-				return <TicketItem key={index} drawNumber={drawNumber} numbers={numbers} winning={result.numbers}/>;
+				return <TicketItem key={index} drawNumber={drawNumber} ticket={ticket} winning={result.numbers} claimTicket={claimTicket}/>;
 			})}
 		</ul>
 	</>;
 }
 
-function TicketItem({drawNumber, numbers, winning}) {
+function TicketItem({drawNumber, ticket, winning, claimTicket}) {
+	let numbers = ticket.numbers;
 	let matches = numbers.filter(number => winning.includes(number)).length;
 	let win;
 	if (winning.length) {
 		if (matches > 0 && matches <= numbers.length) {
-			win = `div ${numbers.length - matches + 1}`;
+			let division = numbers.length - matches + 1;
+			win = `div ${division}`;
+			if (!ticket.claimed) {
+				ticket.prize = PRIZES[division - 1];
+				ticket.claimed = true;
+			}
 		} else {
 			win = "x";
 		}
@@ -68,7 +133,10 @@ function TicketItem({drawNumber, numbers, winning}) {
 	}
 
 	return <li className="ticket">
-		<div>draw number {drawNumber} - {win}</div>
+		{ticket.prize > 0?
+			<div>draw number {drawNumber} - {win} <button onClick={() => claimTicket(ticket)}>claim ${ticket.prize}</button></div>:
+			<div>draw number {drawNumber} - {win}</div>
+		}
 		<div className="balls">
 			{numbers.map((number, index) => <TicketBall key={index} value={number} win={winning.includes(number)}/>)}
 		</div>
@@ -137,11 +205,14 @@ function TicketSelect({start, end, n, addTicket}) {
 			return;
 		}
 
-		addTicket(numbers);
-		clear();
+		let added = addTicket(numbers);
+		if (added) {
+			clear();
+		}
 	}
 
 	return <>
+		<h2>play</h2>
 		<div className="select-numbers">
 			{numbers.map((number, index) => {
 				return <TicketSelectNumber
@@ -200,6 +271,7 @@ function LottoResult({result}) {
 	}
 
 	return <>
+		<h2>results</h2>
 		<div>draw number {result.drawNumber}</div>
 		<div className="results balls">
 			{result.numbers.map((number, index) => <LottoBall key={index} value={number}/>)}
