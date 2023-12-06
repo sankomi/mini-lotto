@@ -65,8 +65,12 @@ export default function App() {
 		<LottoResult result={results.length > 0? results[results.length - 1]: null}/>
 		<h2>wallet</h2>
 		<div>${wallet.money}</div>
-		<TicketSelect start={START} end={END} n={N} addTicket={addTicket}/>
-		<TicketList tickets={tickets} results={results} claimTicket={claimTicket}/>
+		<Modal title={"play"}>
+			<TicketSelect start={START} end={END} n={N} addTicket={addTicket}/>
+		</Modal>
+		<Modal title={"tickets"}>
+			<TicketList tickets={tickets} results={results} claimTicket={claimTicket}/>
+		</Modal>
 	</>;
 }
 
@@ -99,9 +103,71 @@ class Wallet {
 
 }
 
+function Modal({title, children}) {
+	const [show, setShow] = useState(false);
+
+	let backgroundStyle = {
+		position: "fixed",
+		top: "0",
+		left: "0",
+		width: "100%",
+		height: "100%",
+		backgroundColor: "rgba(0, 0, 0, 0.5)",
+		opacity: show? "1": "0",
+		pointerEvents: show? "auto": "none",
+		transition: "opacity 0.2s",
+	};
+	let contentStyle = {
+		position: "absolute",
+		top: "50%",
+		left: "50%",
+		width: "30rem",
+		maxWidth: "calc(100% - 2rem)",
+		maxHeight: "calc(100% - 2rem)",
+		padding: "1rem",
+		backgroundColor: "white",
+		overflow: "auto",
+		transform: "translate(-50%, -50%)",
+	};
+	let closeStyle = {
+		position: "absolute",
+		top: "1rem",
+		right: "1rem",
+		display: "block",
+		width: "2rem",
+		height: "2rem",
+		padding: "0",
+		border: "none",
+		lineHeight: "1rem",
+		backgroundColor: "transparent",
+	};
+	let titleStyle = {marginTop: "0"};
+
+	function open(event) {
+		setShow(true);
+	}
+
+	function close(event) {
+		if (event.target !== event.currentTarget) {
+			return;
+		}
+		setShow(false);
+	}
+
+	return <>
+		<button onClick={open}>{title}</button>
+		<div style={backgroundStyle} onClick={close}>
+			<div style={contentStyle}>
+				<button style={closeStyle} onClick={close}>X</button>
+				<h2 style={titleStyle}>{title}</h2>
+				{children}
+			</div>
+		</div>
+	</>;
+}
+
 function TicketList({tickets, results, claimTicket}) {
 	return <>
-		<h2>tickets</h2>
 		<ul className="tickets">
 			{tickets.map((ticket, index) => {
 				let drawNumber = ticket.drawNumber;
@@ -212,7 +278,6 @@ function TicketSelect({start, end, n, addTicket}) {
 	}
 
 	return <>
-		<h2>play</h2>
 		<div className="select-numbers">
 			{numbers.map((number, index) => {
 				return <TicketSelectNumber
