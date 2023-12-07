@@ -48,9 +48,12 @@ export default function App() {
 			prize: 0,
 		};
 
-		setTickets([...tickets, ticket]);
-
+		tickets.push(ticket);
 		return true;
+	}
+
+	function updateTickets() {
+		setTickets([...tickets]);
 	}
 
 	function claimTicket(ticket) {
@@ -66,7 +69,7 @@ export default function App() {
 		<h2>wallet</h2>
 		<div>${wallet.money}</div>
 		<Modal title={"play"}>
-			<TicketSelect start={START} end={END} n={N} addTicket={addTicket}/>
+			<TicketSelect start={START} end={END} n={N} addTicket={addTicket} updateTickets={updateTickets}/>
 		</Modal>
 		<Modal title={"tickets"}>
 			<TicketList tickets={tickets} results={results} claimTicket={claimTicket}/>
@@ -209,31 +212,60 @@ function TicketItem({drawNumber, ticket, winning, claimTicket}) {
 	</li>;
 }
 
-function TicketSelect({start, end, n, addTicket}) {
+function TicketSelect({start, end, n, addTicket, updateTickets}) {
+	const [tickets, setTickets] = useState([Array(n).fill(null)]);
+	const [ticketNumber, setTicketNumber] = useState(0);
 	const [selecting, setSelecting] = useState(0);
-	const [numbers, setNumbers] = useState(Array(n).fill(null));
 
 	let pool = [];
 	for (let i = start; i <= end; i++) {
 		pool.push(i);
 	}
 
-	function changeSelecting(index) {
-		if (index < n) {
-			setSelecting(index);
-		} else if (index >= 0) {
-			setSelecting(n - 1);
-		} else if (index < 0) {
+	function changeSelecting(index, ticket) {
+		if (ticket !== undefined) {
+			setTicketNumber(ticket);
+		}
+
+		if (index < 0) {
 			setSelecting(0);
+		} else if (index < n) {
+			setSelecting(index);
+		} else {
+			if (tickets.length > ticketNumber + 1) {
+				setTicketNumber(ticketNumber + 1);
+				setSelecting(0);
+			} else {
+				setSelecting(n - 1);
+			}
 		}
 	}
 
-	function selectNumber(number) {
+	function moreTicket() {
+		tickets.push(Array(n).fill(null));
+		if (ticketNumber === tickets.length - 2 && selecting === n - 1) {
+			setTicketNumber(ticketNumber + 1);
+			setSelecting(0);
+		}
+
+		setTickets([...tickets]);
+	}
+
+	function lessTicket(remove) {
+		setTickets([...tickets.filter(ticket => ticket !== remove)]);
+	}
+
+	function selectNumber(number, ticket) {
+		let numbers = tickets[ticketNumber];
+
 		if (numbers.includes(number)) {
 			return;
 		}
+		if (ticket !== ticketNumber) {
+			return;
+		}
 
-		setNumbers(numbers.map((n, index) => {
+		tickets[ticketNumber] = (numbers.map((n, index) => {
 			if (index === selecting) {
 				return number;
 			} else {
@@ -242,11 +274,16 @@ function TicketSelect({start, end, n, addTicket}) {
 		}));
 
 		changeSelecting(selecting + 1);
+		setTickets([...tickets]);
 	}
 
-	function clear() {
+	function clear(index) {
 		setSelecting(0);
-		setNumbers(Array(n).fill(null));
+		if (index !== undefined) {
+			tickets[index] = Array(n).fill(null);
+		} else {
+			tickets[ticketNumber] = Array(n).fill(null);
+		}
 	}
 
 	function random() {
@@ -262,45 +299,65 @@ function TicketSelect({start, end, n, addTicket}) {
 			pool.splice(index, 1);
 		}
 
-		setSelecting(n - 1);
-		setNumbers(numbers);
+		tickets[ticketNumber] = numbers;
+		changeSelecting(n);
+		setTickets([...tickets]);
 	}
 
 	function add() {
-		if (numbers.some(number => number === null)) {
-			return;
-		}
+		tickets.forEach((numbers, index) => {
+			if (numbers.some(number => number === null)) {
+				return;
+			}
 
-		let added = addTicket(numbers);
-		if (added) {
-			clear();
+			let added = addTicket(numbers);
+			if (added) {
+				clear(index);
+			}
+		});
+
+		let newTickets = [...tickets.filter(ticket => !ticket.every(number => number === null))];
+		if (newTickets.length === 0) {
+			newTickets.push(Array(n).fill(null));
 		}
+		setTickets(newTickets);
+
+		changeSelecting(0, 0);
+		updateTickets();
 	}
 
 	return <>
-		<div className="select-numbers">
-			{numbers.map((number, index) => {
-				return <TicketSelectNumber
-					key={index}
-					value={number}
-					selecting={index === selecting}
-					onClick={() => changeSelecting(index)}
-				/>;
-			})}
-		</div>
-		<div className="select-buttons">
-			{pool.map((number, index) => {
-				return <TicketSelectButton
-					key={index}
-					value={number}
-					selected={numbers.includes(number)}
-					onClick={() => selectNumber(number)}
-				/>;
-			})}
+		{tickets.map((numbers, ticketIndex) => {
+			return <div key={ticketIndex}>
+				<div className="select-numbers">
+					{numbers.map((number, index) => {
+						return <TicketSelectNumber
+							key={index}
+							value={number}
+							selecting={ticketIndex === ticketNumber && index === selecting}
+							onClick={() => changeSelecting(index, ticketIndex)}
+						/>;
+					})}
+				</div>
+				<div className="select-buttons">
+					{pool.map((number, index) => {
+						return <TicketSelectButton
+							key={index}
+							value={number}
+							selected={numbers.includes(number)}
+							onClick={() => selectNumber(number, ticketIndex)}
+						/>;
+					})}
+				</div>
+				{tickets.length > 1 && <button onClick={() => lessTicket(numbers)}>remove</button>}
+			</div>;
+		})}
+		<div>
+			<button onClick={moreTicket}>more</button>
 		</div>
 		<div>
 			<button onClick={random}>random</button>
-			<button onClick={clear}>clear</button>
+			<button onClick={() => clear()}>clear</button>
 			<button onClick={add}>add</button>
 		</div>
 	</>;
