@@ -44,7 +44,7 @@ export default function App() {
 		let ticket = {
 			drawNumber,
 			numbers,
-			claimed: false,
+			claim: false,
 			prize: 0,
 		};
 
@@ -64,16 +64,19 @@ export default function App() {
 
 	return <>
 		<h1>mini lotto</h1>
-		<button onClick={() => drawNumbers(START, END, N)}>check</button>
-		<LottoResult result={results.length > 0? results[results.length - 1]: null}/>
-		<h2>wallet</h2>
-		<div>${wallet.money}</div>
-		<Modal title={"play"}>
-			<TicketSelect start={START} end={END} n={N} addTicket={addTicket} updateTickets={updateTickets}/>
-		</Modal>
-		<Modal title={"tickets"}>
-			<TicketList tickets={tickets} results={results} claimTicket={claimTicket}/>
-		</Modal>
+		<LottoResult check={() => drawNumbers(START, END, N)} result={results.length > 0? results[results.length - 1]: {drawNumber: 0, numbers: Array(N).fill("?")}}/>
+		<div className="wallet box">
+			<h2>wallet</h2>
+			<div>${wallet.money}</div>
+			<div className="buttons">
+				<Modal title={"tickets"}>
+					<TicketList tickets={tickets} results={results} drawNumber={results.length > 0? drawNumber: 0} claimTicket={claimTicket} setTickets={setTickets}/>
+				</Modal>
+				<Modal title={"play"}>
+					<TicketSelect start={START} end={END} n={N} addTicket={addTicket} updateTickets={updateTickets}/>
+				</Modal>
+			</div>
+		</div>
 	</>;
 }
 
@@ -124,13 +127,17 @@ function Modal({title, children}) {
 		position: "absolute",
 		top: "50%",
 		left: "50%",
+		display: "flex",
+		flexDirection: "column",
 		width: "30rem",
+		height: "50rem",
 		maxWidth: "calc(100% - 2rem)",
 		maxHeight: "calc(100% - 2rem)",
 		padding: "1rem",
+		border: "1px solid black",
 		backgroundColor: "white",
-		overflow: "auto",
-		transform: "translate(-50%, -50%)",
+		transform: show? "translate(-50%, -50%)": "translate(-50%, calc(-50% + 3rem))",
+		transition: "transform 0.2s",
 	};
 	let closeStyle = {
 		position: "absolute",
@@ -145,6 +152,11 @@ function Modal({title, children}) {
 		backgroundColor: "transparent",
 	};
 	let titleStyle = {marginTop: "0"};
+	let innerStyle = {
+		flexGrow: "1",
+		height: "100%",
+		overflow: "auto",
+	};
 
 	function open(event) {
 		setShow(true);
@@ -163,13 +175,36 @@ function Modal({title, children}) {
 			<div style={contentStyle}>
 				<button style={closeStyle} onClick={close}>X</button>
 				<h2 style={titleStyle}>{title}</h2>
-				{children}
+				<div style={innerStyle}>
+					{children}
+				</div>
 			</div>
 		</div>
 	</>;
 }
 
-function TicketList({tickets, results, claimTicket}) {
+function TicketList({tickets, results, drawNumber, claimTicket, setTickets}) {
+	function clearTickets() {
+		let newTickets = tickets.filter(ticket => {
+			if (ticket.drawNumber > drawNumber) {
+				return true;
+			} else if (!ticket.prize) {
+				return false;
+			} else if (ticket.claim) {
+				return true;
+			} else {
+				return false;
+			}
+		});
+
+		setTickets(newTickets);
+	}
+
+	function claimAll() {
+		tickets.forEach(ticket => claimTicket(ticket));
+		setTickets([...tickets]);
+	}
+
 	return <>
 		<ul className="tickets">
 			{tickets.map((ticket, index) => {
@@ -179,6 +214,10 @@ function TicketList({tickets, results, claimTicket}) {
 				return <TicketItem key={index} drawNumber={drawNumber} ticket={ticket} winning={result.numbers} claimTicket={claimTicket}/>;
 			})}
 		</ul>
+		<div className="buttons">
+			<button onClick={claimAll}>claim all</button>
+			<button onClick={clearTickets}>clear</button>
+		</div>
 	</>;
 }
 
@@ -190,9 +229,9 @@ function TicketItem({drawNumber, ticket, winning, claimTicket}) {
 		if (matches > 0 && matches <= numbers.length) {
 			let division = numbers.length - matches + 1;
 			win = `div ${division}`;
-			if (!ticket.claimed) {
+			if (!ticket.claim) {
 				ticket.prize = PRIZES[division - 1];
-				ticket.claimed = true;
+				ticket.claim = true;
 			}
 		} else {
 			win = "x";
@@ -202,13 +241,11 @@ function TicketItem({drawNumber, ticket, winning, claimTicket}) {
 	}
 
 	return <li className="ticket">
-		{ticket.prize > 0?
-			<div>draw number {drawNumber} - {win} <button onClick={() => claimTicket(ticket)}>claim ${ticket.prize}</button></div>:
-			<div>draw number {drawNumber} - {win}</div>
-		}
+		<div>draw number {drawNumber} - {win}</div>
 		<div className="balls">
 			{numbers.map((number, index) => <TicketBall key={index} value={number} win={winning.includes(number)}/>)}
 		</div>
+		{ticket.prize > 0 && <button className="claim-button" onClick={() => claimTicket(ticket)}>claim ${ticket.prize}</button>}
 	</li>;
 }
 
@@ -252,7 +289,13 @@ function TicketSelect({start, end, n, addTicket, updateTickets}) {
 	}
 
 	function lessTicket(remove) {
-		setTickets([...tickets.filter(ticket => ticket !== remove)]);
+		let newTickets = tickets.filter(ticket => ticket !== remove);
+
+		if (ticketNumber >= newTickets.length) {
+			setTicketNumber(newTickets.length - 1);
+		}
+
+		setTickets([...newTickets]);
 	}
 
 	function selectNumber(number, ticket) {
@@ -339,6 +382,7 @@ function TicketSelect({start, end, n, addTicket, updateTickets}) {
 						/>;
 					})}
 				</div>
+				{tickets.length > 1 && <button className="remove-button" onClick={() => lessTicket(numbers)}>remove</button>}
 				<div className="select-buttons">
 					{pool.map((number, index) => {
 						return <TicketSelectButton
@@ -349,13 +393,10 @@ function TicketSelect({start, end, n, addTicket, updateTickets}) {
 						/>;
 					})}
 				</div>
-				{tickets.length > 1 && <button onClick={() => lessTicket(numbers)}>remove</button>}
 			</div>;
 		})}
-		<div>
+		<div className="wallet__buttons buttons">
 			<button onClick={moreTicket}>more</button>
-		</div>
-		<div>
 			<button onClick={random}>random</button>
 			<button onClick={() => clear()}>clear</button>
 			<button onClick={add}>add</button>
@@ -387,18 +428,15 @@ function TicketBall({value, win}) {
 	return <div className={classes.join(" ")}>{value}</div>;
 }
 
-function LottoResult({result}) {
-	if (!result) {
-		return <></>;
-	}
-
-	return <>
-		<h2>results</h2>
-		<div>draw number {result.drawNumber}</div>
+function LottoResult({result, check}) {
+	return <div className="lotto-result box">
+		<h2 className="lotto-result__heading">results</h2>
+		<button className="lotto-result__check" onClick={check}>check</button>
+		<div>draw number {result.drawNumber || "-"}</div>
 		<div className="results balls">
 			{result.numbers.map((number, index) => <LottoBall key={index} value={number}/>)}
 		</div>
-	</>;
+	</div>;
 }
 
 function LottoBall({value}) {
