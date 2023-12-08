@@ -186,7 +186,7 @@ function Modal({title, children}) {
 function TicketList({tickets, results, drawNumber, claimTicket, setTickets}) {
 	function clearTickets() {
 		let newTickets = tickets.filter(ticket => {
-			if (ticket.drawNumber > drawNumber) {
+			if (ticket.drawNumber >= drawNumber) {
 				return true;
 			} else if (!ticket.prize) {
 				return false;
